@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:s4hana="http://www.mulesoft.org/schema/mule/s4hana" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/s4hana http://www.mulesoft.org/schema/mule/s4hana/current/mule-s4hana.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="636df127-8022-402b-a134-44212b8fcbcb" >
+		<http:listener-connection host="0.0.0.0" port="8084" />
+	</http:listener-config>
+	<s4hana:config name="SAP_S_4HANA_Config" doc:name="SAP S 4HANA Config" doc:id="d9633581-0550-4039-9682-d653e5c2d20b" >
+		<s4hana:basic-authentication-connection username="SALESTECHNICAL" password="SvKMZgCgrFgzera6KPkqhZnfEwMQfVtoTx[QDsLw" baseUrl="https://my304163.s4hana.ondemand.com/" />
+	</s4hana:config>
+	<flow name="mulesoft-lookupFlow" doc:id="38cf5838-fac4-4f81-804a-ae763345a9ac" >
+		<http:listener doc:name="Listener" doc:id="82f471a4-8cbe-483e-a15b-20b4526e603a" config-ref="HTTP_Listener_config" path="/lookup"/>
+		<set-payload value='#[{&#10;	"address": {&#10;		"streetAdd": "111 W Illinois St",&#10;		"streetAdd2": "Salesforce Tower",&#10;		"city": "Chicago",&#10;		"state": "Illinois",&#10;		"country": "US",&#10;		"zip": "60654"&#10;	}&#10;}]' doc:name="Set Payload" doc:id="518721cf-7e23-41fb-b0e4-429baaacb0c7" />
+		<ee:transform doc:name="Transform Message" doc:id="8a98b755-3294-4946-a573-b60047aa5ad0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var csvData = readUrl("classpath://lookup/US_State_Codes.csv","application/csv")
+
+fun lookupCC(state: String) : String = 
+(csvData filter ((item, index) -> item.State == state))[0].StateCode as String
+---
+add:{
+    addressLine: payload.address.streetAdd ++ " " ++ payload.address.streetAdd2,
+    city: payload.address.city,
+    state: payload.address.state,
+    stateCode: lookupCC(payload.address.state),
+    country: payload.address.country,
+    zip: payload.address.zip
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="08553db3-bb97-44fd-bdb6-de6363206a53" message="#[payload]"/>
+	</flow>
+</mule>
